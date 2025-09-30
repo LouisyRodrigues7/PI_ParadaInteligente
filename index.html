@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parada Inteligente - Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1, h2 {
+      color: #333;
+      margin-top: 20px;
+    }
+    canvas {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+      margin-top: 20px;
+      max-width: 800px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Parada Inteligente - Dashboard</h1>
+
+<h2>Clques Totais por Tipo de Botão</h2>
+<canvas id="totalClicksChart"></canvas>
+
+<h2>Cliques por Horário</h2>
+<canvas id="hourlyClicksChart"></canvas>
+
+<script>
+  const API_KEY = "NUQB46X37DE06NP5"; // sua API Key do canal de logs
+  const CHANNEL_ID = 3096316;
+
+  async function fetchData() {
+    const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=50`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.feeds;
+  }
+
+  function prepareTotalData(feeds) {
+    const totalVisual = feeds.reduce((acc,f) => acc + parseInt(f.field1), 0);
+    const totalFisico = feeds.reduce((acc,f) => acc + parseInt(f.field2), 0);
+    return { totalVisual, totalFisico };
+  }
+
+  function prepareHourlyData(feeds) {
+    const hours = {};
+    feeds.forEach(f => {
+      const date = new Date(f.created_at);
+      const hour = date.getHours();
+      if (!hours[hour]) hours[hour] = { visual: 0, fisico: 0 };
+      hours[hour].visual += parseInt(f.field1);
+      hours[hour].fisico += parseInt(f.field2);
+    });
+    const labels = Object.keys(hours).sort((a,b) => a-b);
+    const visual = labels.map(h => hours[h].visual);
+    const fisico = labels.map(h => hours[h].fisico);
+    return { labels, visual, fisico };
+  }
+
+  async function createCharts() {
+    const feeds = await fetchData();
+
+    const { totalVisual, totalFisico } = prepareTotalData(feeds);
+    const ctxTotal = document.getElementById('totalClicksChart').getContext('2d');
+    new Chart(ctxTotal, {
+      type: 'bar',
+      data: {
+        labels: ['Deficiente Visual', 'Deficiente Físico'],
+        datasets: [{
+          label: 'Total de Cliques',
+          data: [totalVisual, totalFisico],
+          backgroundColor: ['blue', 'orange']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Cliques Totais' }
+        },
+        scales: {
+          y: { beginAtZero: true, stepSize: 1 }
+        }
+      }
+    });
+
+    // --- Hourly Clicks Line Chart ---
+    const { labels, visual, fisico } = prepareHourlyData(feeds);
+    const ctxHourly = document.getElementById('hourlyClicksChart').getContext('2d');
+    new Chart(ctxHourly, {
+      type: 'line',
+      data: {
+        labels: labels.map(h => `${h}:00`),
+        datasets: [
+          {
+            label: 'Deficiente Visual',
+            data: visual,
+            borderColor: 'blue',
+            backgroundColor: 'rgba(0,0,255,0.2)',
+            tension: 0.3,
+            fill: true
+          },
+          {
+            label: 'Deficiente Físico',
+            data: fisico,
+            borderColor: 'orange',
+            backgroundColor: 'rgba(255,165,0,0.2)',
+            tension: 0.3,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: true, text: 'Cliques por Horário' }
+        },
+        scales: {
+          y: { beginAtZero: true, stepSize: 1 }
+        }
+      }
+    });
+  }
+
+  createCharts();
+</script>
+
+</body>
+</html>
