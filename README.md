@@ -1,51 +1,40 @@
-📊 Parada Inteligente - Dashboard
+# Parada Inteligente - Protótipo IoT
 
-Este projeto é um protótipo de sistema de monitoramento em tempo real para uma parada de ônibus inteligente.
-Ele coleta dados de botões físicos (para deficientes visuais e físicos) e envia para o ThingSpeak, de onde os dados são consumidos e exibidos em um dashboard interativo com Chart.js.
+## Descrição
+Este projeto implementa uma **parada de ônibus inteligente** utilizando um ESP32, com foco em acessibilidade para pessoas com **deficiência visual** e **deficiência física**.  
+O protótipo combina **lógica local** (decisões instantâneas no dispositivo) e **lógica via nuvem** (ajustes remotos de thresholds e coleta de dados) utilizando o **ThingSpeak**.  
 
-🚀 Funcionalidades
+Um **dashboard web** exibe os dados em tempo real, incluindo cliques nos botões e thresholds, permitindo monitoramento e análise.
 
-Envio de eventos do ESP32 para a nuvem via ThingSpeak.
+---
 
-Leitura de thresholds configurados na nuvem (tempo de chegada, som, LED).
+## Funcionalidades
 
-Dashboard web que mostra:
+### Protótipo ESP32
+- Botão Azul: acionado por pessoas com deficiência visual → LED azul acende + log.
+- Botão Amarelo: acionado por pessoas com deficiência física → LED amarelo acende + log.
+- Busca thresholds via ThingSpeak (GET) e aplica regras remotas.
+- Fail-safe: caso a nuvem não responda, utiliza valores padrão locais.
+- Decisões locais para ações críticas: LEDs acendem imediatamente sem depender da internet.
+- Logs enviados para nuvem: possibilita análise histórica e ajuste remoto de thresholds.
 
-📌 Cliques totais nos botões (deficiente visual e físico).
+### Dashboard Web
+- Gráfico de linhas para **tempo, ativação de LED e som**.
+- Gráfico de barras para **total de cliques por tipo de botão**.
+- Atualização automática a cada 5 segundos via API ThingSpeak.
+- Interface responsiva, visual clara e amigável, construída com **HTML, CSS e Chart.js**.
+- Permite visualizar a distribuição de cliques por horário, separando tipo de usuário.
+- Facilita análise de padrões e tomada de decisão baseada em dados históricos.
 
-⏰ Cliques por horário em gráfico de linha.
+---
 
-📈 Atualização automática em tempo real (a cada 5s).
+## Tecnologias Utilizadas
+- **ESP32** (simulado no Wokwi)
+- **ThingSpeak API** (para logs e thresholds)
+- **ArduinoJson** (para parsear JSON no ESP32)
+- **HTML, CSS e Chart.js** (para o dashboard web)
+- **VS Code** (para edição e deploy do projeto)
 
-Interface responsiva e simples para visualização rápida.
+---
 
-🛠️ Tecnologias Utilizadas
-🔹 Hardware & IoT
 
-ESP32 (Wokwi) – simulação e envio de dados.
-
-WiFi + HTTPClient – comunicação com ThingSpeak.
-
-ArduinoJson – parse de dados JSON via GET.
-
-🔹 Backend/Nuvem
-
-ThingSpeak – armazenamento de logs e thresholds.
-
-Canal 3096316 → Logs (cliques).
-
-Canal 3096396 → Thresholds (tempo, som, LED).
-
-🔹 Frontend
-
-HTML + CSS + JavaScript
-
-Chart.js – gráficos dinâmicos.
-
-Fetch API – consumo de dados do ThingSpeak.
-
-📊 Exemplo de Dashboard
-
-Gráfico de Barras → Cliques totais por tipo de botão.
-
-Gráfico de Linha → Cliques por horário (últimas leituras).
