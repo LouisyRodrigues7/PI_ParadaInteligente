@@ -17,7 +17,10 @@ let chart = new Chart(ctx, {
   },
   options: {
     responsive: true,
-    plugins: { legend: { position: 'top' }, title: { display: true, text: 'Dados da Parada Inteligente' } },
+    plugins: { 
+      legend: { position: 'top' }, 
+      title: { display: true, text: 'Dados da Parada Inteligente' } 
+    },
     scales: { y: { beginAtZero: true } }
   }
 });
@@ -35,15 +38,18 @@ function atualizarDados() {
       ledEl.textContent = lastFeed.field3;
 
       // atualizar gráfico
-      chart.data.labels = data.feeds.map(f => f.created_at);
-      chart.data.datasets[0].data = data.feeds.map(f => f.field1);
-      chart.data.datasets[1].data = data.feeds.map(f => f.field2);
-      chart.data.datasets[2].data = data.feeds.map(f => f.field3);
-      chart.update();
+      chart.data.labels = data.feeds.map(f => 
+        new Date(f.created_at).toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"})
+      );
+      chart.data.datasets[0].data = data.feeds.map(f => Number(f.field1) || 0);
+      chart.data.datasets[1].data = data.feeds.map(f => Number(f.field2) || 0);
+      chart.data.datasets[2].data = data.feeds.map(f => Number(f.field3) || 0);
+
+      chart.update("active");
     })
     .catch(err => console.error("Erro ao buscar dados:", err));
 }
 
 // atualiza a cada 5 segundos
 atualizarDados();
-setInterval(atualizarDados, 5000);
+setInterval(atualizarDados, 4000);
