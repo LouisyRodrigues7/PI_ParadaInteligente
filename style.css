@@ -1,48 +1,55 @@
 body {
-    font-family: Arial, sans-serif;
-    background: #f0f2f5;
-    color: #333;
-    margin: 0;
-    padding: 0;
-  }
-  
-  .container {
-    max-width: 900px;
-    margin: 20px auto;
-    padding: 20px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.1);
-  }
-  
-  h1 {
-    text-align: center;
-    margin-bottom: 20px;
-  }
-  
-  .cards {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 30px;
-  }
-  
-  .card {
-    background: #fafafa;
-    padding: 15px 25px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.05);
-    text-align: center;
-    width: 28%;
-  }
-  
-  .card h2 {
-    margin: 0 0 10px;
-    font-size: 16px;
-  }
-  
-  .card p {
-    font-size: 24px;
-    font-weight: bold;
-    color: #007BFF;
-  }
-  
+  font-family: Arial, sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Ajuste para as duas paradas: flex-wrap permite quebrar a linha se não couber */
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: #fafafa;
+  padding: 15px 25px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+  text-align: center;
+  width: 28%;
+  margin-bottom: 15px; /* espaço entre linhas quando quebrar */
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.card p {
+  font-size: 24px;
+  font-weight: bold;
+  color: #007BFF;
+}
+
+/* Opcional: destacar cards da Parada 2 com cor diferente */
+.card.parada2 p {
+  color: #28a745; /* verde para diferenciar da parada 1 */
+}
