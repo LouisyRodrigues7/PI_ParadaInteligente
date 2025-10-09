@@ -1,96 +1,199 @@
-// URLs das duas paradas
-const URL_PARADA1 = "https://api.thingspeak.com/channels/3096396/feeds.json?api_key=NKF7SS9JG4XWVGNG&results=10";
-const URL_PARADA2 = "https://api.thingspeak.com/channels/3102167/feeds.json?api_key=3EFVUAMPT6UA7AJ3&results=10";
+const channels = [
+  { id: 3096316, key: "NUQB46X37DE06NP5", label: "Parada 1" },
+  { id: 3102167, key: "3EFVUAMPT6UA7AJ3", label: "Parada 2" }
+];
 
-// Elementos HTML para mostrar últimos valores
-const tempo1El = document.getElementById("tempo1");
-const som1El = document.getElementById("som1");
-const led1El = document.getElementById("led1");
+let totalClicksChart, hourlyClicksChart, comparacaoFluxoChart, comparacaoDeficienciaChart;
+let paradaSelecionada = "todas";
+let periodoSelecionado = "24h";
 
-const tempo2El = document.getElementById("tempo2");
-const som2El = document.getElementById("som2");
-const led2El = document.getElementById("led2");
+async function fetchData(channel) {
+  const url = `https://api.thingspeak.com/channels/${channel.id}/feeds.json?api_key=${channel.key}&results=500`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.feeds || [];
+}
 
-// Canvas do Chart.js
-const ctx = document.getElementById('chart').getContext('2d');
+function prepareHourlyData(feeds) {
+  const hours = {};
+  feeds.forEach(f => {
+    const h = new Date(f.created_at).getHours();
+    if (!hours[h]) hours[h] = { visual: 0, fisico: 0 };
+    hours[h].visual += parseInt(f.field1) || 0;
+    hours[h].fisico += parseInt(f.field2) || 0;
+  });
+  const labels = Object.keys(hours).sort((a, b) => a - b);
+  return {
+    labels: labels.map(l => l + ":00"),
+    visual: labels.map(h => hours[h].visual),
+    fisico: labels.map(h => hours[h].fisico)
+  };
+}
 
-// Inicializa gráfico
-let chart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      { label: 'TempoMinChegada P1', data: [], borderColor: 'blue', fill: false },
-      { label: 'AtivarSom P1', data: [], borderColor: 'orange', fill: false },
-      { label: 'AtivarLED P1', data: [], borderColor: 'green', fill: false },
-      { label: 'TempoMinChegada P2', data: [], borderColor: 'darkblue', fill: false },
-      { label: 'AtivarSom P2', data: [], borderColor: 'darkorange', fill: false },
-      { label: 'AtivarLED P2', data: [], borderColor: 'darkgreen', fill: false }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: { 
-      legend: { position: 'top' }, 
-      title: { display: true, text: 'Thresholds das Paradas Inteligentes' } 
-    },
-    scales: { y: { beginAtZero: true } }
+function calcularLimiteTempo(periodo) {
+  const agora = new Date();
+  switch (periodo) {
+    case "24h":
+      agora.setHours(agora.getHours() - 24);
+      break;
+    case "7d":
+      agora.setDate(agora.getDate() - 7);
+      break;
+    case "1m":
+      agora.setMonth(agora.getMonth() - 1);
+      break;
+    case "3m":
+      agora.setMonth(agora.getMonth() - 3);
+      break;
+    case "6m":
+      agora.setMonth(agora.getMonth() - 6);
+      break;
+    case "1a":
+      agora.setFullYear(agora.getFullYear() - 1);
+      break;
   }
+  return agora;
+}
+
+async function updateCharts() {
+  let feedsPorCanal = await Promise.all(channels.map(ch => fetchData(ch)));
+
+  if (paradaSelecionada === "1") {
+    feedsPorCanal = [feedsPorCanal[0]];
+  } else if (paradaSelecionada === "2") {
+    feedsPorCanal = [feedsPorCanal[1]];
+  }
+
+  const limiteTempo = calcularLimiteTempo(periodoSelecionado);
+
+  feedsPorCanal = feedsPorCanal.map(feeds => {
+    const filtrados = feeds.filter(f => new Date(f.created_at) >= limiteTempo);
+    return filtrados;
+  });
+
+  const allFeeds = feedsPorCanal.flat();
+  const totalVisual = allFeeds.reduce((a, f) => a + (parseInt(f.field1) || 0), 0);
+  const totalFisico = allFeeds.reduce((a, f) => a + (parseInt(f.field2) || 0), 0);
+
+  document.getElementById("totalVisual").textContent = totalVisual;
+  document.getElementById("totalFisico").textContent = totalFisico;
+
+  const topParadaElement = document.getElementById("topParada");
+  const fluxoTotal = feedsPorCanal.map(feeds => feeds.reduce((total, feed) => total + (parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0), 0));
+  const totalGeralDeAcionamentos = fluxoTotal.reduce((soma, valorAtual) => soma + valorAtual, 0);
+
+  if (totalGeralDeAcionamentos === 0) {
+    topParadaElement.textContent = '–';
+  } else {
+    if (paradaSelecionada === "todas") {
+      topParadaElement.textContent = fluxoTotal[0] >= fluxoTotal[1] ? "Parada 1" : "Parada 2";
+    } else {
+      topParadaElement.textContent = paradaSelecionada === "1" ? "Parada 1" : "Parada 2";
+    }
+  }
+  
+  const { labels, visual, fisico } = prepareHourlyData(allFeeds);
+
+  totalClicksChart.data.datasets[0].data = [totalVisual, totalFisico];
+  hourlyClicksChart.data.labels = labels;
+  hourlyClicksChart.data.datasets[0].data = visual;
+  hourlyClicksChart.data.datasets[1].data = fisico;
+  comparacaoFluxoChart.data.datasets[0].data = (feedsPorCanal.length === 1)
+    ? [fluxoTotal[0], 0]
+    : fluxoTotal;
+
+  comparacaoDeficienciaChart.data.datasets[0].data = feedsPorCanal.map(f => f.reduce((a, f) => a + (parseInt(f.field1) || 0), 0));
+  comparacaoDeficienciaChart.data.datasets[1].data = feedsPorCanal.map(f => f.reduce((a, f) => a + (parseInt(f.field2) || 0), 0));
+
+  comparacaoFluxoChart.data.labels = feedsPorCanal.length === 1 ? [channels[paradaSelecionada - 1].label] : ['Parada 1', 'Parada 2'];
+  comparacaoDeficienciaChart.data.labels = comparacaoFluxoChart.data.labels;
+
+  totalClicksChart.update();
+  hourlyClicksChart.update();
+  comparacaoFluxoChart.update();
+  comparacaoDeficienciaChart.update();
+
+  document.getElementById("ultimaAtualizacao").textContent = new Date().toLocaleTimeString("pt-BR");
+}
+
+function createCharts() {
+  totalClicksChart = new Chart(document.getElementById('totalClicksChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Deficiente Visual', 'Deficiente Físico'],
+      datasets: [{
+        label: 'Total de Cliques',
+        data: [0, 0],
+        backgroundColor: ['#2b4eff', '#ff8a00']
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+
+  hourlyClicksChart = new Chart(document.getElementById('hourlyClicksChart'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Deficiente Visual', data: [], borderColor: '#2b4eff', backgroundColor: 'rgba(43,78,255,0.2)', tension: 0.4, fill: true },
+        { label: 'Deficiente Físico', data: [], borderColor: '#ff8a00', backgroundColor: 'rgba(255,138,0,0.2)', tension: 0.4, fill: true }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+  });
+
+  comparacaoFluxoChart = new Chart(document.getElementById('comparacaoFluxoChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Parada 1', 'Parada 2'],
+      datasets: [{ label: 'Fluxo Total', data: [0, 0], backgroundColor: ['#2b4eff', '#ff8a00'] }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+
+  comparacaoDeficienciaChart = new Chart(document.getElementById('comparacaoDeficienciaChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Parada 1', 'Parada 2'],
+      datasets: [
+        { label: 'Deficiente Visual', data: [0, 0], backgroundColor: '#2b4eff' },
+        { label: 'Deficiente Físico', data: [0, 0], backgroundColor: '#ff8a00' }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+  });
+
+  updateCharts();
+  setInterval(updateCharts, 4000);
+}
+
+const themeToggle = document.getElementById("temaToggle");
+const body = document.body;
+
+function setTema(isDarkMode) {
+    body.classList.toggle("dark-mode", isDarkMode);
+    themeToggle.checked = isDarkMode;
+    localStorage.setItem("theme", isDarkMode ? "dark" : "light");
+}
+
+themeToggle.addEventListener("change", (e) => {
+    setTema(e.target.checked);
 });
 
-// Função genérica para buscar feeds de uma parada
-async function fetchParada(url) {
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    return (data.feeds && data.feeds.length > 0) ? data.feeds : null;
-  } catch (err) {
-    console.error("Erro ao buscar dados:", err);
-    return null;
-  }
-}
+document.getElementById("paradaSelect").addEventListener("change", (e) => {
+  paradaSelecionada = e.target.value;
+  updateCharts();
+});
 
-// Função genérica para atualizar os elementos e datasets
-function atualizarParada(feeds, elementos, indices) {
-  const last = feeds[feeds.length - 1];
-  elementos.tempo.textContent = last.field1 || 0;
-  elementos.som.textContent = last.field2 || 0;
-  elementos.led.textContent = last.field3 || 0;
+document.getElementById("periodoSelect").addEventListener("change", (e) => {
+  periodoSelecionado = e.target.value;
+  updateCharts();
+});
 
-  chart.data.datasets[indices.tempo].data = feeds.map(f => Number(f.field1) || 0);
-  chart.data.datasets[indices.som].data = feeds.map(f => Number(f.field2) || 0);
-  chart.data.datasets[indices.led].data = feeds.map(f => Number(f.field3) || 0);
-}
+document.getElementById("atualizarBtn").addEventListener("click", updateCharts);
 
-// Atualiza valores e gráfico
-async function atualizarDados() {
-  const feeds1 = await fetchParada(URL_PARADA1);
-  const feeds2 = await fetchParada(URL_PARADA2);
 
-  if (feeds1) {
-    atualizarParada(feeds1, 
-      { tempo: tempo1El, som: som1El, led: led1El }, 
-      { tempo: 0, som: 1, led: 2 }
-    );
-  }
+const savedTheme = localStorage.getItem("theme");
+setTema(savedTheme === null || savedTheme === "dark");
 
-  if (feeds2) {
-    atualizarParada(feeds2, 
-      { tempo: tempo2El, som: som2El, led: led2El }, 
-      { tempo: 3, som: 4, led: 5 }
-    );
-  }
-
-  // Atualiza labels usando os timestamps da primeira parada (ou segunda se quiser)
-  if (feeds1 && feeds1.length > 0) {
-    chart.data.labels = feeds1.map(f => 
-      new Date(f.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-    );
-  }
-
-  chart.update("active");
-}
-
-// Atualiza a cada 4 segundos
-atualizarDados();
-setInterval(atualizarDados, 4000);
+createCharts();
